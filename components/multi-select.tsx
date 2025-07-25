@@ -1,22 +1,22 @@
 "use client"
 
 import * as React from "react"
-import { Check, ChevronsUpDown, XCircle } from "lucide-react"
+import { X, Check } from "lucide-react"
 
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
+import { Command, CommandGroup, CommandItem } from "@/components/ui/command"
+import { CommandList } from "@/components/ui/command"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
-interface MultiSelectOption {
-  value: string
+export type OptionType = {
   label: string
+  value: string
 }
 
 interface MultiSelectProps {
-  options: MultiSelectOption[]
+  options: OptionType[]
   selected: string[]
   onValueChange: (value: string[]) => void
   placeholder?: string
@@ -27,20 +27,14 @@ export function MultiSelect({
   options,
   selected,
   onValueChange,
-  placeholder = "Seleccionar opciones...",
+  placeholder = "Select options...",
   className,
 }: MultiSelectProps) {
   const [open, setOpen] = React.useState(false)
 
-  const handleSelect = (currentValue: string) => {
-    const newSelected = selected.includes(currentValue)
-      ? selected.filter((item) => item !== currentValue)
-      : [...selected, currentValue]
+  const handleSelect = (value: string) => {
+    const newSelected = selected.includes(value) ? selected.filter((item) => item !== value) : [...selected, value]
     onValueChange(newSelected)
-  }
-
-  const handleClearAll = () => {
-    onValueChange([])
   }
 
   return (
@@ -50,7 +44,7 @@ export function MultiSelect({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className={cn("w-full justify-between h-auto min-h-[40px] flex-wrap", className)}
+          className={cn("w-full justify-between h-auto min-h-[36px]", className)}
         >
           <div className="flex flex-wrap gap-1">
             {selected.length === 0 ? (
@@ -60,9 +54,9 @@ export function MultiSelect({
                 const option = options.find((opt) => opt.value === value)
                 return (
                   <Badge key={value} variant="secondary" className="flex items-center gap-1">
-                    {option?.label || value}
-                    <XCircle
-                      className="h-3 w-3 cursor-pointer text-muted-foreground hover:text-foreground"
+                    {option?.label}
+                    <X
+                      className="h-3 w-3 cursor-pointer"
                       onClick={(e) => {
                         e.stopPropagation()
                         handleSelect(value)
@@ -73,17 +67,15 @@ export function MultiSelect({
               })
             )}
           </div>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          <span className="sr-only">Toggle options</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
         <Command>
-          <CommandInput placeholder="Buscar opciones..." />
           <CommandList>
-            <CommandEmpty>No se encontraron opciones.</CommandEmpty>
             <CommandGroup>
               {options.map((option) => (
-                <CommandItem key={option.value} value={option.value} onSelect={() => handleSelect(option.value)}>
+                <CommandItem key={option.value} onSelect={() => handleSelect(option.value)} className="cursor-pointer">
                   <Check
                     className={cn("mr-2 h-4 w-4", selected.includes(option.value) ? "opacity-100" : "opacity-0")}
                   />
@@ -92,16 +84,6 @@ export function MultiSelect({
               ))}
             </CommandGroup>
           </CommandList>
-          {selected.length > 0 && (
-            <>
-              <Separator className="my-2" />
-              <CommandGroup>
-                <CommandItem onSelect={handleClearAll} className="text-center text-red-500 cursor-pointer">
-                  Limpiar todo
-                </CommandItem>
-              </CommandGroup>
-            </>
-          )}
         </Command>
       </PopoverContent>
     </Popover>
