@@ -1,13 +1,12 @@
 "use client"
 
 import * as React from "react"
-import { X, Check } from "lucide-react"
+import { X, Check, ChevronsUpDown } from "lucide-react" // Añadido ChevronsUpDown
 
 import { Badge } from "@/components/ui/badge"
-import { Command, CommandGroup, CommandItem } from "@/components/ui/command"
-import { CommandList } from "@/components/ui/command"
+import { Command, CommandGroup, CommandItem, CommandList, CommandInput } from "@/components/ui/command" // Importado CommandInput
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button" // Importado Button
 import { cn } from "@/lib/utils"
 
 export type OptionType = {
@@ -35,6 +34,12 @@ export function MultiSelect({
   const handleSelect = (value: string) => {
     const newSelected = selected.includes(value) ? selected.filter((item) => item !== value) : [...selected, value]
     onValueChange(newSelected)
+    // No es necesario cerrar el popover aquí para permitir selecciones múltiples
+  }
+
+  const handleRemove = (value: string) => {
+    const newSelected = selected.filter((item) => item !== value)
+    onValueChange(newSelected)
   }
 
   return (
@@ -58,8 +63,8 @@ export function MultiSelect({
                     <X
                       className="h-3 w-3 cursor-pointer"
                       onClick={(e) => {
-                        e.stopPropagation()
-                        handleSelect(value)
+                        e.stopPropagation() // Evita que el popover se cierre al hacer clic en la X
+                        handleRemove(value)
                       }}
                     />
                   </Badge>
@@ -67,11 +72,14 @@ export function MultiSelect({
               })
             )}
           </div>
-          <span className="sr-only">Toggle options</span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" /> {/* Icono de desplegable */}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
         <Command>
+          {" "}
+          {/* Command ahora está dentro de PopoverContent */}
+          <CommandInput placeholder="Buscar opciones..." /> {/* CommandInput maneja su propio valor y filtrado */}
           <CommandList>
             <CommandGroup>
               {options.map((option) => (

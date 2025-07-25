@@ -48,7 +48,8 @@ export default function StudentGradesApp() {
   const [minFailedSubjects, setMinFailedSubjects] = useState<number | string>("")
   const [minFailedGradeType, setMinFailedGradeType] = useState<string>("final") // New state for grade type for min failed subjects
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string>("")
+  const [error, setError] = React.useState<string>("") // Changed to React.useState
+
   const [expandedEvaluationType, setExpandedEvaluationType] = useState<string | null>(null)
 
   const gradeTypeOptions = [
@@ -74,7 +75,7 @@ export default function StudentGradesApp() {
       normalizedName.includes("lenguajes tecnologicos") ||
       normalizedName.includes("sistemas tecnologicos") ||
       normalizedName.includes("procedimientos tecnicos")
-      // Removed: || normalizedName === "taller - general"
+      // TALLER - General is now explicitly NOT excluded here
     )
   }
 
@@ -94,6 +95,12 @@ export default function StudentGradesApp() {
         const workbook = XLSX.read(data, { type: "array" })
 
         workbook.SheetNames.forEach((sheetName) => {
+          // IMPORTANT: If the sheet name is "TALLER - General", skip it.
+          // The calculated "TALLER - General" will be added later.
+          if (normalizeString(sheetName) === "taller - general") {
+            return // Skip this sheet
+          }
+
           const worksheet = workbook.Sheets[sheetName]
           const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false })
 
@@ -102,8 +109,8 @@ export default function StudentGradesApp() {
             section = ""
 
           if (courseInfo) {
-            const yearCell = courseInfo.find((cell, index) => typeof cell === "string" && cell.includes("AÑO:"))
-            const sectionCell = courseInfo.find((cell, index) => typeof cell === "string" && cell.includes("SECCIÓN:"))
+            const yearCell = courseInfo.find((cell) => typeof cell === "string" && cell.includes("AÑO:"))
+            const sectionCell = courseInfo.find((cell) => typeof cell === "string" && cell.includes("SECCIÓN:"))
 
             if (yearCell) year = yearCell.replace("AÑO:", "").trim()
             if (sectionCell) section = sectionCell.replace("SECCIÓN:", "").trim()
@@ -162,7 +169,10 @@ export default function StudentGradesApp() {
         })
       }
 
+      // Now, process workshop subjects from the filtered newFiles.
+      // This function will add the *calculated* TALLER - General.
       const processedFiles = processWorkshopSubjects(newFiles)
+
       setFiles((prev) => [...prev, ...processedFiles])
     } catch (err) {
       setError("Error al procesar los archivos Excel. Verifique el formato.")
