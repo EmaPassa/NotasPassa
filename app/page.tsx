@@ -699,8 +699,8 @@ export default function StudentGradesApp() {
         let totalSubjects = 0
         let passedSubjects = 0
         let failedSubjects = 0
-        const totalGrades = 0
-        const gradeSum = 0
+        let totalGrades = 0
+        let gradeSum = 0
 
         studentSubjectsForAllGrades.forEach((item) => {
           // Do NOT exclude subjects here, as we need all data for overall stats
@@ -717,6 +717,8 @@ export default function StudentGradesApp() {
                 failedSubjects++
               } else if (!isNaN(grade) && grade > 0) {
                 totalSubjects++
+                totalGrades++
+                gradeSum += grade
                 if (grade >= 7) {
                   passedSubjects++
                 } else {
@@ -726,6 +728,8 @@ export default function StudentGradesApp() {
             } else {
               if (!isNaN(grade) && grade > 0) {
                 totalSubjects++
+                totalGrades++
+                gradeSum += grade
                 if (grade >= 7) {
                   passedSubjects++
                 } else {
@@ -886,6 +890,91 @@ export default function StudentGradesApp() {
     }))
 
     exportToExcel(exportData, `Detalle_Materias_${evaluationType}`)
+  }
+
+  const exportSubjectMatrix = (evaluationType: string) => {
+    // Get all unique students from filtered data
+    const allStudents = new Set<string>()
+    filteredData.forEach((subject) => {
+      subject.students.forEach((student) => {
+        if (filteredStudents.includes(student.name)) {
+          allStudents.add(student.name)
+        }
+      })
+    })
+
+    // Get all unique subjects from filtered data
+    const allSubjects = filteredData.map((subject) => subject.subject)
+
+    // Create matrix data
+    const matrixData: any[] = []
+
+    Array.from(allStudents)
+      .sort()
+      .forEach((studentName) => {
+        const studentRow: any = {
+          Estudiante: studentName,
+        }
+
+        // For each subject, find the student's grade
+        allSubjects.forEach((subjectName) => {
+          const subjectData = filteredData.find((s) => s.subject === subjectName)
+          const studentData = subjectData?.students.find((s) => s.name === studentName)
+
+          if (studentData) {
+            const gradeStr = studentData[evaluationType as keyof StudentGrade].toString().trim().toUpperCase()
+            const grade = Number.parseFloat(gradeStr)
+
+            // Determine status for coloring
+            let status = "N/A"
+            if (evaluationType === "preliminar1" || evaluationType === "preliminar2") {
+              if (gradeStr === "TEA" || (!isNaN(grade) && grade >= 7)) {
+                status = "APROBADO"
+              } else if (gradeStr === "TEP" || gradeStr === "TED" || (!isNaN(grade) && grade < 7 && grade > 0)) {
+                status = "DESAPROBADO"
+              }
+            } else {
+              if (!isNaN(grade) && grade > 0) {
+                if (grade >= 7) {
+                  status = "APROBADO"
+                } else {
+                  status = "DESAPROBADO"
+                }
+              }
+            }
+
+            studentRow[subjectName] = `${gradeStr || "N/A"} (${status})`
+          } else {
+            studentRow[subjectName] = "N/A (N/A)"
+          }
+        })
+
+        matrixData.push(studentRow)
+      })
+
+    // Create workbook with conditional formatting
+    const ws = XLSX.utils.json_to_sheet(matrixData)
+    const wb = XLSX.utils.book_new()
+
+    // Apply conditional formatting (note: this is basic, Excel will need manual formatting for colors)
+    const range = XLSX.utils.decode_range(ws["!ref"] || "A1")
+
+    // Add a note about formatting in the first row
+    const headerRow: any = { Estudiante: "NOTA: Verde = Aprobado (TEA o ≥7), Amarillo = Desaprobado (TEP/TED o <7)" }
+    allSubjects.forEach((subject) => {
+      headerRow[subject] = "Formato: Nota (Estado)"
+    })
+
+    // Insert header row
+    XLSX.utils.sheet_add_json(ws, [headerRow], { origin: "A1" })
+    XLSX.utils.sheet_add_json(ws, matrixData, { origin: "A2", skipHeader: true })
+
+    XLSX.utils.book_append_sheet(wb, ws, "Matriz_Calificaciones")
+
+    XLSX.writeFile(
+      wb,
+      `Matriz_Calificaciones_${evaluationType}_${getGradeTypeLabel(evaluationType).replace(/\s+/g, "_")}.xlsx`,
+    )
   }
 
   const isMinFailedFilterActive = minFailedSubjects !== "" && Number(minFailedSubjects) > 0
@@ -1906,7 +1995,6 @@ export default function StudentGradesApp() {
                     <Card className="border-blue-200 bg-blue-50">
                       <CardHeader className="bg-blue-100">
                         <div className="flex justify-between items-center">
-                          {" "}
                           <div>
                             <CardTitle className="text-blue-800">
                               Detalle por Materia -{" "}
@@ -1916,15 +2004,26 @@ export default function StudentGradesApp() {
                               Estadísticas detalladas por cada materia para este tipo de evaluación
                             </CardDescription>
                           </div>
-                          <Button
-                            onClick={() => exportSubjectDetails(expandedEvaluationType)}
-                            variant="outline"
-                            size="sm"
-                            className="border-blue-300 text-blue-700 hover:bg-blue-100 bg-transparent"
-                          >
-                            <Download className="h-4 w-4 mr-2" />
-                            Exportar Detalle
-                          </Button>
+                          <div className="flex space-x-2">
+                            <Button
+                              onClick={() => exportSubjectDetails(expandedEvaluationType)}
+                              variant="outline"
+                              size="sm"
+                              className="border-blue-300 text-blue-700 hover:bg-blue-100 bg-transparent"
+                            >
+                              <Download className="h-4 w-4 mr-2" />
+                              Exportar Detalle
+                            </Button>
+                            <Button
+                              onClick={() => exportSubjectMatrix(expandedEvaluationType)}
+                              variant="outline"
+                              size="sm"
+                              className="border-green-300 text-green-700 hover:bg-green-100 bg-transparent"
+                            >
+                              <Download className="h-4 w-4 mr-2" />
+                              Exportar Materias
+                            </Button>
+                          </div>
                         </div>
                       </CardHeader>
                       <CardContent className="pt-6">
