@@ -923,29 +923,9 @@ export default function StudentGradesApp() {
 
           if (studentData) {
             const gradeStr = studentData[evaluationType as keyof StudentGrade].toString().trim().toUpperCase()
-            const grade = Number.parseFloat(gradeStr)
-
-            // Determine status for coloring
-            let status = "N/A"
-            if (evaluationType === "preliminar1" || evaluationType === "preliminar2") {
-              if (gradeStr === "TEA" || (!isNaN(grade) && grade >= 7)) {
-                status = "APROBADO"
-              } else if (gradeStr === "TEP" || gradeStr === "TED" || (!isNaN(grade) && grade < 7 && grade > 0)) {
-                status = "DESAPROBADO"
-              }
-            } else {
-              if (!isNaN(grade) && grade > 0) {
-                if (grade >= 7) {
-                  status = "APROBADO"
-                } else {
-                  status = "DESAPROBADO"
-                }
-              }
-            }
-
-            studentRow[subjectName] = `${gradeStr || "N/A"} (${status})`
+            studentRow[subjectName] = gradeStr || "N/A"
           } else {
-            studentRow[subjectName] = "N/A (N/A)"
+            studentRow[subjectName] = "N/A"
           }
         })
 
@@ -956,18 +936,56 @@ export default function StudentGradesApp() {
     const ws = XLSX.utils.json_to_sheet(matrixData)
     const wb = XLSX.utils.book_new()
 
-    // Apply conditional formatting (note: this is basic, Excel will need manual formatting for colors)
+    // Apply background colors based on grade status
     const range = XLSX.utils.decode_range(ws["!ref"] || "A1")
 
-    // Add a note about formatting in the first row
-    const headerRow: any = { Estudiante: "NOTA: Verde = Aprobado (TEA o ≥7), Amarillo = Desaprobado (TEP/TED o <7)" }
-    allSubjects.forEach((subject) => {
-      headerRow[subject] = "Formato: Nota (Estado)"
-    })
+    // Create styles for approved (green) and failed (yellow) cells
+    const approvedStyle = {
+      fill: {
+        fgColor: { rgb: "90EE90" }, // Light green
+      },
+    }
 
-    // Insert header row
-    XLSX.utils.sheet_add_json(ws, [headerRow], { origin: "A1" })
-    XLSX.utils.sheet_add_json(ws, matrixData, { origin: "A2", skipHeader: true })
+    const failedStyle = {
+      fill: {
+        fgColor: { rgb: "FFFF99" }, // Light yellow
+      },
+    }
+
+    // Apply conditional formatting to data cells (skip header row)
+    for (let row = range.s.r + 1; row <= range.e.r; row++) {
+      for (let col = range.s.c + 1; col <= range.e.c; col++) {
+        // Skip first column (student names)
+        const cellAddress = XLSX.utils.encode_cell({ r: row, c: col })
+        const cell = ws[cellAddress]
+
+        if (cell && cell.v) {
+          const gradeStr = cell.v.toString().trim().toUpperCase()
+          const grade = Number.parseFloat(gradeStr)
+
+          let isApproved = false
+
+          if (evaluationType === "preliminar1" || evaluationType === "preliminar2") {
+            if (gradeStr === "TEA" || (!isNaN(grade) && grade >= 7)) {
+              isApproved = true
+            }
+          } else {
+            if (!isNaN(grade) && grade >= 7) {
+              isApproved = true
+            }
+          }
+
+          // Apply style based on approval status
+          if (gradeStr !== "N/A") {
+            if (isApproved) {
+              cell.s = approvedStyle
+            } else if (gradeStr === "TEP" || gradeStr === "TED" || (!isNaN(grade) && grade < 7 && grade > 0)) {
+              cell.s = failedStyle
+            }
+          }
+        }
+      }
+    }
 
     XLSX.utils.book_append_sheet(wb, ws, "Matriz_Calificaciones")
 
